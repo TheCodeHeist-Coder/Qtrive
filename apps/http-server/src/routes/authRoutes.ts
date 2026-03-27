@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { userSignUpController } from "../controllers/authController";
+import { userRegisterController } from "../controllers/authController";
 
 
 const router:Router = Router();
 
 
-router.post("signup", userSignUpController)
+router.post("/register", userRegisterController)
 
 
 
