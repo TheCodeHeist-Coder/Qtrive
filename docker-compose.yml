@@ -26,7 +26,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/Qtrive
     env_file:
       - ./apps/http-server/.env
-    command: sh -c "pnpm prisma generate && pnpm prisma migrate deploy && pnpm run dev"
+    command: sh -c "pnpm --filter @repo/db run db:generate && pnpm --filter @repo/db run db:migrate && pnpm run dev"
     depends_on:
       db:
         condition: service_healthy
@@ -43,10 +43,11 @@ services:
     volumes:
       - Qtrive_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg-isready -U postgres -d Qtrive -h 127.0.0.1"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
 
 volumes:
   Qtrive_data:
