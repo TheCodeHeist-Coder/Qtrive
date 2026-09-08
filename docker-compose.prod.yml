@@ -20,6 +20,7 @@ services:
             - frontend
             - backend
             - ws-server
+            - genai
 
     frontend:
         build:
@@ -33,6 +34,7 @@ services:
         depends_on:
             - backend
             - ws-server
+            - genai
 
     backend:
         build:
@@ -77,6 +79,28 @@ services:
         command: >
             sh -c "pnpm --filter @repo/db run db:generate:prod &&
                    pnpm run start"
+
+    genai:
+        build:
+            context: .
+            dockerfile: apps/genAI/Dockerfile.prod
+        image: codeheist/rexial-genai:latest
+        container_name: rexial-genai-prod
+        restart: always
+        env_file:
+            - .env.prod
+        environment:
+            - UPLOAD_DIR=/data/uploads
+        volumes:
+            - genai_uploads:/data/uploads
+        networks:
+            - rexial-network
+        healthcheck:
+            test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+            interval: 15s
+            timeout: 5s
+            retries: 5
+            start_period: 60s
 
     db:
         image: postgres:15-alpine
@@ -128,6 +152,7 @@ networks:
 
 volumes:
     Rexial_data:
+    genai_uploads:
     nginx_data:
     letsencrypt:
     redis_data:

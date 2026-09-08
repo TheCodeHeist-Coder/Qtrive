@@ -1,11 +1,24 @@
-from utils.llm import Google_llm
+from app.utils.llm import get_google_llm
+from app.utils.config import TAVILY_API_KEY, require
 from langchain_tavily import TavilySearch
 from langchain_core.messages import HumanMessage
 
+_search = None
 
-search = TavilySearch(
-    max_results=5
-)
+
+def get_search():
+    """Build the Tavily client on first use, so a missing key does not
+    break startup for requests that never search the web."""
+
+    global _search
+
+    if _search is None:
+        _search = TavilySearch(
+            max_results=5,
+            tavily_api_key=require("TAVILY_API_KEY", TAVILY_API_KEY),
+        )
+
+    return _search
 
 
 def chat(user_query: str):
@@ -43,7 +56,7 @@ User Query:
 {user_query}
 """
 
-    decision_response = Google_llm.invoke(
+    decision_response = get_google_llm().invoke(
         [HumanMessage(content=router_prompt)]
     )
 
@@ -68,7 +81,7 @@ User Query:
     # Web search required
     if decision == "SEARCH":
 
-        search_result = search.invoke({
+        search_result = get_search().invoke({
             "query": user_query
         })
 
@@ -87,7 +100,7 @@ Rules:
 - If the search results do not contain enough information, say so.
 """
 
-        response = Google_llm.invoke(
+        response = get_google_llm().invoke(
             [HumanMessage(content=prompt)]
         )
 
@@ -95,7 +108,7 @@ Rules:
 
 
     # Normal question
-    response = Google_llm.invoke([
+    response = get_google_llm().invoke([
         HumanMessage(content=user_query)
     ])
 

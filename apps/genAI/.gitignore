@@ -7,3 +7,10 @@
 .venv/
 venv/
 env/
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+
+# Runtime upload storage
+uploads/

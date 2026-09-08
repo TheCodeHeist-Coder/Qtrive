@@ -1,0 +1,62 @@
+FROM python:3.11-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/models \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
+
+WORKDIR /app/apps/genAI
+
+
+# dependencies stage
+FROM base AS deps
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY apps/genAI/requirements.txt ./requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m venv /venv \
+    && /venv/bin/pip install --upgrade pip \
+    && /venv/bin/pip install --resume-retries 10 -r requirements.txt
+
+# bake the embedding model into the image so the container does not
+# download it on a cold start (keep in sync with EMBEDDING_MODEL in
+# app/rag/rag_system.py)
+COPY apps/genAI/app/rag/rag_system.py /tmp/rag_system.py
+RUN MODEL=$(grep -oP 'EMBEDDING_MODEL = "\K[^"]+' /tmp/rag_system.py) \
+    && echo "Baking embedding model: $MODEL" \
+    && /venv/bin/python -c "\
+import sys; from sentence_transformers import SentenceTransformer; \
+SentenceTransformer(sys.argv[1])" "$MODEL" \
+    && rm /tmp/rag_system.py
+
+
+# prod stage
+FROM base AS runner
+
+ENV PATH="/venv/bin:$PATH" \
+    UPLOAD_DIR=/data/uploads
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=deps /venv /venv
+COPY --from=deps /models /models
+
+COPY apps/genAI/app ./app
+
+# run as an unprivileged user
+RUN useradd --create-home --uid 1001 genai \
+    && mkdir -p /data/uploads \
+    && chown -R genai:genai /data/uploads /models
+
+USER genai
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
