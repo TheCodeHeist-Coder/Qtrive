@@ -1,10 +1,12 @@
 import { Link, useNavigate, useParams } from "react-router-dom"
 import BgBoss from "../components/BgBoss"
-import { BsArrowLeft, BsMailbox, BsTrash2 } from "react-icons/bs"
+import { BsArrowLeft, BsMailbox, BsTrash2, BsStars } from "react-icons/bs"
 import { api } from "../services/api"
 import { useEffect, useState } from "react"
 import { BiPlay, BiPlus, BiSave } from "react-icons/bi"
 import { LuUserSearch } from "react-icons/lu"
+import AiQuizGenerator from "../components/AiQuizGenerator"
+import type { GeneratedQuestion } from "../services/genaiApi"
 
 
 function QuizBuilder() {
@@ -20,6 +22,7 @@ function QuizBuilder() {
 
 
   const [showAddQ, setShowAddQ] = useState(false);
+  const [showAiGen, setShowAiGen] = useState(false);
   const [qText, setQText] = useState('');
   const [qTime, setQTime] = useState('15');
   const [answers, setAnswers] = useState([{ text: '', isCorrect: true }, { text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }]);
@@ -105,6 +108,15 @@ function QuizBuilder() {
     }
   };
 
+  const handleSaveAiQuestion = async (q: GeneratedQuestion, timeLimit: number) => {
+    await api.post(`/quizzes/${id}/questions`, {
+      text: q.text,
+      timeLimit,
+      answers: q.options.map(o => ({ text: o.text, isCorrect: o.isCorrect }))
+    });
+  };
+
+
   const handleSaveQuestion = async () => {
     if (!qText.trim() || answers.some(a => !a.text.trim())) return alert('Fill all text fields');
     if (!answers.some(a => a.isCorrect)) return alert('Select at least one correct answer');
@@ -179,10 +191,23 @@ function QuizBuilder() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold font-secondary text-gray-300 tracking-wider">Questions ({quiz?.questions?.length || 0})</h2>
-            <button onClick={() => setShowAddQ(!showAddQ)} className="flex items-center gap-2 py-2.5 px-4 rounded-full bg-pink-600/30 hover:bg-pink-600/40 active:scale-90 border border-pink-700 cursor-pointer text-pink-500 font-secondary tracking-wider font-extrabold transition duration-100">
-              <BiPlus className="w-4 h-4" /> Add Question
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => { setShowAiGen(!showAiGen); setShowAddQ(false); }} className="flex items-center gap-2 py-2.5 px-4 rounded-full bg-purple-600/30 hover:bg-purple-600/40 active:scale-90 border border-purple-700 cursor-pointer text-purple-400 font-secondary tracking-wider font-extrabold transition duration-100">
+                <BsStars className="w-4 h-4" /> Generate with AI
+              </button>
+              <button onClick={() => { setShowAddQ(!showAddQ); setShowAiGen(false); }} className="flex items-center gap-2 py-2.5 px-4 rounded-full bg-pink-600/30 hover:bg-pink-600/40 active:scale-90 border border-pink-700 cursor-pointer text-pink-500 font-secondary tracking-wider font-extrabold transition duration-100">
+                <BiPlus className="w-4 h-4" /> Add Question
+              </button>
+            </div>
           </div>
+
+          {showAiGen && (
+            <AiQuizGenerator
+              onSave={handleSaveAiQuestion}
+              onSaved={fetchQuiz}
+              onClose={() => setShowAiGen(false)}
+            />
+          )}
 
           {showAddQ && (
             <div className="glass-card py-8 px-12 mt-12 bg-zinc-900/40 border border-gray-800/50 rounded-2xl">

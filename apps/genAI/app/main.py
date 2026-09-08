@@ -7,8 +7,9 @@ from pydantic import BaseModel
 from pathlib import Path
 import os
 import shutil
-from app.rag.rag_system import generate_questions,ask_pdf
+from app.rag.rag_system import generate_questions,ask_pdf,generate_quiz
 from app.utils.config import MissingAPIKey
+from app.utils.errors import provider_http_error
 
 
 app = FastAPI(title="Rexial GenAI Service")
@@ -84,7 +85,12 @@ def health():
 
 @app.post("/chat")
 def chat_endpoint(request: ChatRequest):
-    response = chat(request.user_query)
+    try:
+        response = chat(request.user_query)
+    except MissingAPIKey:
+        raise
+    except Exception as exc:
+        raise provider_http_error(exc)
 
     return {
         "response": response
@@ -99,10 +105,15 @@ async def generate_pdf_questions(
 
     file_path = save_upload(file)
 
-    questions = generate_questions(
-        str(file_path),
-        user_query
-    )
+    try:
+        questions = generate_questions(
+            str(file_path),
+            user_query
+        )
+    except MissingAPIKey:
+        raise
+    except Exception as exc:
+        raise provider_http_error(exc)
 
     return {
         "message": "Questions generated successfully",
@@ -120,14 +131,59 @@ async def ask_pdf_question(
 
     file_path = save_upload(file)
 
-    answer = ask_pdf(
-        str(file_path),
-        user_query
-    )
+    try:
+        answer = ask_pdf(
+            str(file_path),
+            user_query
+        )
+    except MissingAPIKey:
+        raise
+    except Exception as exc:
+        raise provider_http_error(exc)
 
     return {
         "message": "Answer generated successfully",
         "filename": file.filename,
         "question": user_query,
         "answer": answer
+    }
+
+@app.post("/generate-quiz")
+async def generate_quiz_endpoint(
+    file: UploadFile = File(...),
+    user_query: str = Form(...)
+):
+    """Generate multiple-choice questions as structured JSON.
+
+    Unlike /generate-questions, which returns a formatted text blob for
+    humans to read, this returns data the quiz builder can render and
+    save directly.
+    """
+
+    file_path = save_upload(file)
+
+    try:
+        questions = generate_quiz(str(file_path), user_query)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"The model returned an unusable response: {exc}"
+        )
+    except MissingAPIKey:
+        raise
+    except Exception as exc:
+        raise provider_http_error(exc)
+
+    if not questions:
+        raise HTTPException(
+            status_code=422,
+            detail="No valid questions could be generated from this PDF. "
+                   "Try a clearer request or a different document."
+        )
+
+    return {
+        "message": "Quiz generated successfully",
+        "filename": file.filename,
+        "count": len(questions),
+        "questions": questions,
     }
