@@ -1,19 +1,27 @@
-langchain
-langgraph
-python-dotenv
-pymupdf
-aiofiles
-python-multipart
+# Web framework
 fastapi
+uvicorn[standard]
+python-multipart
+aiofiles
+python-dotenv
+
+# LangChain core
 langchain
+langchain-core
+langchain-community
+langchain-text-splitters
+langgraph
+
+# Model providers
 langchain-google-genai
 langchain-groq
-langchain-community
-langchain-core
-langchain-text-splitters
-faiss-cpu
-sentence-transformers 
-langchain-tavily
-uvicorn
-pypdf
 langchain-huggingface
+langchain-tavily
+
+# Embeddings / vector search
+sentence-transformers
+faiss-cpu
+
+# PDF parsing
+pypdf
+pymupdf

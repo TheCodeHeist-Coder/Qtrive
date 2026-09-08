@@ -10,6 +10,7 @@ services:
       - .:/app
     depends_on:
       - backend
+      - genai
 
   ws-server:
     build:
@@ -49,6 +50,29 @@ services:
       db:
         condition: service_healthy
 
+  genai:
+    build:
+      context: .
+      dockerfile: apps/genAI/Dockerfile
+    container_name: QtriveGenAI
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/genAI/app:/app/apps/genAI/app
+      - Qtrive_genai_uploads:/app/apps/genAI/uploads
+      - Qtrive_genai_models:/models
+    env_file:
+      - apps/genAI/.env
+    environment:
+      - UPLOAD_DIR=/app/apps/genAI/uploads
+      - ALLOWED_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
   db:
     image: postgres:15-alpine
     container_name: Qtrive_db
@@ -85,3 +109,5 @@ services:
 volumes:
   Qtrive_data:
   Qtrive_redis_data:
+  Qtrive_genai_uploads:
+  Qtrive_genai_models:

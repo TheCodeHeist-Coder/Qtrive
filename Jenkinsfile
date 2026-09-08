@@ -44,6 +44,7 @@ pipeline{
                      docker push codeheist/rexial-frontend:latest
                      docker push codeheist/rexial-http-server:latest
                      docker push codeheist/rexial-ws-server:latest
+                     docker push codeheist/rexial-genai:latest
                     '''
                 }
             }
@@ -56,7 +57,7 @@ pipeline{
                     string(credentialsId: 'DATABASE_URL', variable: 'DATABASE_URL'),
                     ]){
                 sh '''
-               docker compose -f docker-compose.prod.yml pull frontend backend ws-server
+               docker compose -f docker-compose.prod.yml pull frontend backend ws-server genai
                DATABASE_URL=$DATABASE_URL docker compose -f docker-compose.prod.yml up -d
                 '''
                }

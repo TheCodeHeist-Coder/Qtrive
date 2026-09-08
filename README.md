@@ -88,8 +88,9 @@ The platform evolves in multiple versions:
 - **Monorepo structure** using TurboRepo  
 - Separate apps/services:
   - `frontend` (React)
-  - `backend` (Express + WebSockets)
-  - `ai-service` (Python – GenAI, V2)
+  - `http-server` (Express REST API)
+  - `ws-server` (WebSockets, live quiz)
+  - `genAI` (Python / FastAPI – RAG, question generation, chat)
 - Real-time communication via **WebSockets**
 - Containerized using **Docker**
 - CI/CD pipelines via ** Jenkins **
