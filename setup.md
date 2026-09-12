@@ -1,6 +1,6 @@
-# 💡 Project Setup Guide (Turborepo + Pnpm + Docker):
+# Project Setup Guide (Turborepo + Pnpm + Docker):
 
-### 🗂️ Project Folder Structure
+### Project Folder Structure
 ```
 ├── apps/
 │   ├── http-server/
@@ -17,15 +17,15 @@
 └── package.json
 ```
 
-### 🎟️ Prerequisites
+### Prerequisites
 
 #### Make sure you have the following installes:-
-   
-    * Node.js (>= 20)
-    * pnpm (>= 9)
-    * Python (>= 3.11)   # for the genAI service
-    * Docker
-    * Docker Compose
+
+    *Node.js (>= 20)
+    *pnpm (>= 9)
+    *Python (>= 3.11)   # for the genAI service
+    *Docker
+    *Docker Compose
 
 #### (1) Now, fork & clone the repository
 ```bash
@@ -33,7 +33,7 @@ git clone https://github.com/TheCodeHeist-Coder/Qtrive.git
 cd Qtrive
 ```
 
-#### (2) Install pnpm globally if not installed    
+#### (2) Install pnpm globally if not installed
 
 ```bash
 npm install -g pnpm
@@ -46,13 +46,13 @@ pnpm install
 
 #### (4) Setup Environment Variables
 
-* Create a `.env` in `/packages/db` and put this ennvironment variable
+*Create a `.env` in `/packages/db` and put this ennvironment variable
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb
 ```
 
-* Create a `.env` file in `/apps/http-server` and put these variables
+*Create a `.env` file in `/apps/http-server` and put these variables
 ```bash
 PORT=4000
 
@@ -64,7 +64,7 @@ FRONTEND_URL=http://localhost:5173
 
 ```
 
-* Create a `.env` file in `/apps/genAI` (copy from `.env.example`)
+*Create a `.env` file in `/apps/genAI` (copy from `.env.example`)
 ```bash
 cp apps/genAI/.env.example apps/genAI/.env
 ```
@@ -79,9 +79,9 @@ TAVILY_API_KEY=<yourTavilyKey>
 ```bash
 docker-compose up --build
 ```
-* Build all services (http-server, ws-server, frontend, genAI)
-* Start PostgreSQL database
-* Start all containers
+*Build all services (http-server, ws-server, frontend, genAI)
+*Start PostgreSQL database
+*Start all containers
 
 
 #### (6) Access the application
@@ -95,7 +95,7 @@ PostgreSQL → localhost:5432
 
 ---
 
-### 🤖 Running the GenAI service without Docker
+### Running the GenAI service without Docker
 
 The Python service is part of the Turborepo workspace, so `pnpm dev` at the
 repo root starts it alongside the JS apps — but it needs a virtualenv first:

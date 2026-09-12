@@ -1,6 +1,7 @@
-from dotenv import load_dotenv
-from pathlib import Path
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Load apps/genAI/.env explicitly. A bare load_dotenv() searches from the
 # current working directory, which misses the file when the service is

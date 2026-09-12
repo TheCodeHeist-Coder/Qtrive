@@ -23,7 +23,7 @@ _________________ `` Rexial ``________________
 
 ### (3) => Setting questions for users as quiz host
            -> Quiz organnisers can set their custom questions by own
-           -> and also set the time-limit for each question by own                   
+           -> and also set the time-limit for each question by own
 
 
 
@@ -66,8 +66,8 @@ _________________ `` Rexial ``________________
             Database: Firebase Firestore for rooms/leagues (atomic updates); Redis for live leaderboards.
 
 
-        (ii) auto genearted quize by uploading the pdf of the content and syllabus 
-        (iii) AI generated quiz in just one prompt with dificulty levels 
+        (ii) auto genearted quize by uploading the pdf of the content and syllabus   [SHIPPED v2]
+        (iii) AI generated quiz in just one prompt with dificulty levels              [SHIPPED v2]
 
 
 
@@ -76,6 +76,43 @@ _________________ `` Rexial ``________________
 
 
 
+
+
+ ## ``v2 Shipped: GenAI Service``
+
+### (5) => AI quiz generation from a PDF
+
+Implemented as a separate Python service at ``apps/genAI`` (FastAPI), so the
+AI work stays out of the Node servers and can scale on its own.
+
+**What a host can do now**
+-> In the Quiz Builder, click **Generate with AI**
+-> Upload a PDF (syllabus, notes, chapter) and describe what they want
+   e.g. *"5 medium questions about chapter 2"*
+-> The service reads the PDF and writes multiple-choice questions with
+   4 options each, one correct answer, and a difficulty label
+-> Generated questions land in a **review step** first: the host can edit the
+   wording, fix an option, change which answer is correct, or drop a question
+-> Nothing is saved to the database until the host confirms
+
+**Endpoints** (see ``apps/genAI/app/main.py``)
+-> ``POST /generate-quiz``      structured JSON questions, used by the UI
+-> ``POST /generate-questions`` the same thing as a readable text blob
+-> ``POST /ask-pdf``            question answering over an uploaded PDF (RAG)
+-> ``POST /chat``               general chat, with web search when needed
+
+**How it works**
+-> PDF is chunked, embedded with ``sentence-transformers``, and searched
+   with an in-memory vector store (RAG)
+-> Groq runs question generation; Gemini runs chat; Tavily handles web search
+-> Model output is validated before it is returned: any question without
+   exactly 4 options and exactly 1 correct answer is discarded rather than
+   shown to the host
+
+### Still open on the AI side
+-> No persistence of uploaded PDFs between requests (each call re-reads)
+-> Question generation is one-shot; no "regenerate this one question" yet
+-> No caching, so generating twice from the same PDF costs twice
 
 
  ## Schema planning...

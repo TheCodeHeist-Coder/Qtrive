@@ -1,110 +1,114 @@
 # ***Real-Time Quiz Platform***
 
-## 📌 Overview
+## Overview
 Rexial is a **real-time quiz hosting platform** where users can create, host, and participate in quizzes seamlessly using a unique join code. It is designed to provide an interactive and engaging experience with live dashboards, avatars, and collaborative hosting.
 
 The platform evolves in multiple versions:
 
-- **Version 1:** Core real-time quiz system  
-- **Version 2:** AI-powered quiz generation  
-- **Version 3:** Live video-based quiz experience  
+-**Version 1:** Core real-time quiz system
+-**Version 2:** AI-powered quiz generation
+-**Version 3:** Live video-based quiz experience
 
 ---
 
 ## Version - 1 (DEMO-VIDEO)
 ## [[Watch the Demo video of version-1]](/assets/versio1-video//Screencast%20From%202026-04-18%2000-37-22.mp4)
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Monorepo & Tooling
-- **TurboRepo** – High-performance monorepo setup  
-- **pnpm Workspaces** – Efficient dependency management  
+-**TurboRepo** – High-performance monorepo setup
+-**pnpm Workspaces** – Efficient dependency management
 
 ### Frontend
-- **React** – UI development  
+-**React** – UI development
 
 ### Backend
-- **Node.js + Express** – API and server logic  
-- **WebSockets** – Real-time communication  
+-**Node.js + Express** – API and server logic
+-**WebSockets** – Real-time communication
 
 ### Database
-- **PostgreSQL** – Relational database  
-- **Prisma ORM** – Type-safe database access  
+-**PostgreSQL** – Relational database
+-**Prisma ORM** – Type-safe database access
 
 ### Version 2 (AI Features)
-- **Python** – AI/ML services for quiz generation  
-- **GenAI APIs / LLMs** – Content-based question generation  
+-**Python** – AI/ML services for quiz generation
+-**GenAI APIs / LLMs** – Content-based question generation
 
 ### Version 3 (Live Streaming)
-- **WebRTC** – Real-time video/audio communication  
+-**WebRTC** – Real-time video/audio communication
 
 ---
 
-## ✨ Features
+## Features
 
-###  Version 1 – Core Features
--  Create and host quizzes  
--  Unique quiz join code system  
--  Participants can join using code  
--  Co-host support  
--  Real-time quiz flow using WebSockets  
--  Live dashboard after each question  
--  Final leaderboard/dashboard at the end  
--  Random avatar assigned to participants  
-
----
-
-### 🤖 Version 2 – AI Integration
--  Generate quizzes using prompts  
--  Subject-based quiz generation  
--  Upload PDFs/PPTs to auto-generate questions  
--  Smart content understanding using GenAI  
--  Dynamic quiz creation pipeline  
+### Version 1 – Core Features
+- Create and host quizzes
+- Unique quiz join code system
+- Participants can join using code
+- Co-host support
+- Real-time quiz flow using WebSockets
+- Live dashboard after each question
+- Final leaderboard/dashboard at the end
+- Random avatar assigned to participants
 
 ---
 
-### 🎥 Version 3 – Live Streaming Experience
--  Real-time video quiz sessions  
--  Host-guided quiz interactions  
--  Interactive learning environment  
--  Combine live discussion with quiz attempts  
--  Feedback and explanations during quiz  
+### Version 2 – AI Integration
+- Generate quizzes using prompts
+- Subject-based quiz generation
+- Upload PDFs/PPTs to auto-generate questions
+- Smart content understanding using GenAI
+- Dynamic quiz creation pipeline
+
+---
+
+### Version 3 – Live Streaming Experience
+- Real-time video quiz sessions
+- Host-guided quiz interactions
+- Interactive learning environment
+- Combine live discussion with quiz attempts
+- Feedback and explanations during quiz
 
 ---
 
 ### DevOps & Deployment
-- **Docker** – Containerization  
-- ** Jenkins ** – CI/CD pipelines  
-- **AWS** – Cloud hosting and infrastructure  
+-**Docker** – Containerization
+-**GitHub Actions** – CI/CD pipelines
+-**AWS** – Cloud hosting and infrastructure
 
 ### Future DevOps Enhancements
-- **Kubernetes** – Container orchestration  
-- Advanced scaling and monitoring tools  
+-**Kubernetes** – Container orchestration
+-Advanced scaling and monitoring tools
 
 ---
 
-## 🧩 Architecture Overview
+## Architecture Overview
 
-- **Monorepo structure** using TurboRepo  
-- Separate apps/services:
-  - `frontend` (React)
-  - `http-server` (Express REST API)
-  - `ws-server` (WebSockets, live quiz)
-  - `genAI` (Python / FastAPI – RAG, question generation, chat)
-- Real-time communication via **WebSockets**
-- Containerized using **Docker**
-- CI/CD pipelines via ** Jenkins **
-- Hosted on **AWS**
-- Future scalability with **Kubernetes**
+-**Monorepo structure** using TurboRepo
+-Separate apps/services:
+  -`frontend` (React)
+  -`http-server` (Express REST API)
+  -`ws-server` (WebSockets, live quiz)
+  -`genAI` (Python / FastAPI – RAG, question generation, chat)
+-Real-time communication via **WebSockets**
+-Containerized using **Docker**
+-CI/CD pipelines via **GitHub Actions** — see [.github/CI-CD.md](.github/CI-CD.md)
+-Hosted on **AWS**
+-Future scalability with **Kubernetes**
+
+ **[Read the full architecture guide →](ARCHITECTURE.md)** — service
+boundaries, data model, request flows, caching, and the design decisions
+behind them.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js  
-- pnpm  
-- PostgreSQL  
+-Node.js
+-pnpm
+-PostgreSQL
 
 ### Installation
 

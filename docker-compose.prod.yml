@@ -26,7 +26,7 @@ services:
         build:
             context: .
             dockerfile: apps/frontend/Dockerfile.prod
-        image: codeheist/rexial-frontend:latest
+        image: codeheist/rexial-frontend:${IMAGE_TAG:-latest}
         container_name: rexial-frontend-prod
         restart: always
         networks:
@@ -42,7 +42,7 @@ services:
             dockerfile: apps/http-server/Dockerfile.prod
             args:
                 DATABASE_URL: ${DATABASE_URL}
-        image: codeheist/rexial-http-server:latest
+        image: codeheist/rexial-http-server:${IMAGE_TAG:-latest}
         container_name: rexial-http-server-prod
         restart: always
         env_file:
@@ -66,7 +66,7 @@ services:
             dockerfile: apps/ws-server/Dockerfile.prod
             args:
                 DATABASE_URL: ${DATABASE_URL}
-        image: codeheist/rexial-ws-server:latest
+        image: codeheist/rexial-ws-server:${IMAGE_TAG:-latest}
         container_name: rexial-ws-server-prod
         restart: always
         env_file:
@@ -84,7 +84,7 @@ services:
         build:
             context: .
             dockerfile: apps/genAI/Dockerfile.prod
-        image: codeheist/rexial-genai:latest
+        image: codeheist/rexial-genai:${IMAGE_TAG:-latest}
         container_name: rexial-genai-prod
         restart: always
         env_file:
