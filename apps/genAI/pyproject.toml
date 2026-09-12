@@ -1,0 +1,26 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+]
+
+ignore = [
+    # FastAPI's dependency injection is expressed as call-valued defaults
+    # (File(...), Form(...)), which bugbear flags by design.
+    "B008",
+    # Provider SDKs raise their own exception types, so the AI endpoints
+    # deliberately catch broadly and translate in provider_http_error.
+    "BLE001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt modules are long strings, not code to wrap.
+"app/prompts/*.py" = ["E501"]

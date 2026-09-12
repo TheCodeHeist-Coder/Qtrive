@@ -1,0 +1,166 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  # Allows a manual redeploy from the Actions tab without a new commit.
+  workflow_dispatch:
+
+# Never let two deploys touch the server at once, and do not cancel a
+# deploy midway: a half-applied rollout is worse than a queued one.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY_NAMESPACE: codeheist
+
+jobs:
+  build-and-push:
+    name: Build & push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: frontend
+            image: rexial-frontend
+            dockerfile: apps/frontend/Dockerfile.prod
+          - service: http-server
+            image: rexial-http-server
+            dockerfile: apps/http-server/Dockerfile.prod
+          - service: ws-server
+            image: rexial-ws-server
+            dockerfile: apps/ws-server/Dockerfile.prod
+          - service: genai
+            image: rexial-genai
+            dockerfile: apps/genAI/Dockerfile.prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # Tag with the commit SHA as well as latest, so a bad deploy can
+          # be rolled back to an exact known-good image.
+          tags: |
+            ${{ env.REGISTRY_NAMESPACE }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}
+          build-args: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          # Reported, not enforced: a CVE in a base image should not block
+          # a deploy until you have decided how to triage it.
+          exit-code: "0"
+
+  deploy:
+    name: Deploy to production
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Attach to a GitHub Environment so you can require manual approval
+    # and scope the deploy secrets to production only.
+    environment:
+      name: production
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stops: true
+          script: |
+            set -euo pipefail
+
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Take the exact commit this workflow built.
+            git fetch --all
+            git checkout main
+            git reset --hard ${{ github.sha }}
+
+            # Pin to this commit's images rather than :latest, so the
+            # deployed version is unambiguous and rollback is exact.
+            export IMAGE_TAG=${{ github.sha }}
+
+            echo "Pulling images tagged $IMAGE_TAG"
+            docker compose -f docker-compose.prod.yml pull \
+              frontend backend ws-server genai
+
+            # Migrations are not run here: the backend service applies
+            # them itself on startup via its compose command
+            # (db:generate:prod && db:migrate && start).
+            echo "Starting services"
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "Waiting for containers to settle"
+            sleep 20
+
+            docker compose -f docker-compose.prod.yml ps
+
+            # Fail the deploy if any expected service is not running.
+            for svc in frontend backend ws-server genai db redis; do
+              state=$(docker compose -f docker-compose.prod.yml ps \
+                --format '{{.State}}' "$svc" || true)
+              echo "  $svc: ${state:-missing}"
+              if [ "$state" != "running" ]; then
+                echo "ERROR: $svc is not running"
+                docker compose -f docker-compose.prod.yml logs --tail 50 "$svc"
+                exit 1
+              fi
+            done
+
+            docker image prune -f
+            echo "Deployment complete"
+
+  rollback-hint:
+    name: Report failure
+    needs: deploy
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Explain how to roll back
+        run: |
+          echo "Deploy of ${{ github.sha }} failed."
+          echo ""
+          echo "Every build is tagged with its commit SHA, so rolling back"
+          echo "is a matter of pinning the last known-good one:"
+          echo ""
+          echo "  ssh <user>@<host>"
+          echo "  cd <deploy path>"
+          echo "  IMAGE_TAG=<last-good-sha> \\"
+          echo "    docker compose -f docker-compose.prod.yml up -d"
+          echo ""
+          echo "Past tags: https://hub.docker.com/r/codeheist/rexial-http-server/tags"
+          exit 1

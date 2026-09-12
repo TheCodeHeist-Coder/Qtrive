@@ -1,16 +1,16 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException,Form, Request
-from fastapi.responses import JSONResponse
-from app.agent.Qnagent import chat
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-from pathlib import Path
 import os
 import shutil
-from app.rag.rag_system import generate_questions,ask_pdf,generate_quiz
+from pathlib import Path
+
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+from app.agent.Qnagent import chat
+from app.rag.rag_system import ask_pdf, generate_questions, generate_quiz
 from app.utils.config import MissingAPIKey
 from app.utils.errors import provider_http_error
-
 
 app = FastAPI(title="Rexial GenAI Service")
 
@@ -90,7 +90,7 @@ def chat_endpoint(request: ChatRequest):
     except MissingAPIKey:
         raise
     except Exception as exc:
-        raise provider_http_error(exc)
+        raise provider_http_error(exc) from exc
 
     return {
         "response": response
@@ -113,7 +113,7 @@ async def generate_pdf_questions(
     except MissingAPIKey:
         raise
     except Exception as exc:
-        raise provider_http_error(exc)
+        raise provider_http_error(exc) from exc
 
     return {
         "message": "Questions generated successfully",
@@ -139,7 +139,7 @@ async def ask_pdf_question(
     except MissingAPIKey:
         raise
     except Exception as exc:
-        raise provider_http_error(exc)
+        raise provider_http_error(exc) from exc
 
     return {
         "message": "Answer generated successfully",
@@ -168,11 +168,11 @@ async def generate_quiz_endpoint(
         raise HTTPException(
             status_code=502,
             detail=f"The model returned an unusable response: {exc}"
-        )
+        ) from exc
     except MissingAPIKey:
         raise
     except Exception as exc:
-        raise provider_http_error(exc)
+        raise provider_http_error(exc) from exc
 
     if not questions:
         raise HTTPException(

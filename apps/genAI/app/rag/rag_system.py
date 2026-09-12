@@ -1,13 +1,14 @@
 import json
 import re
+
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
-from app.prompts.rag_Qna_generate_prompt import QUESTION_GENERATION_PROMPT
-from app.prompts.quiz_json_prompt import QUIZ_JSON_PROMPT
-from app.utils.llm import get_groq_llm
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from app.prompts.quiz_json_prompt import QUIZ_JSON_PROMPT
+from app.prompts.rag_Qna_generate_prompt import QUESTION_GENERATION_PROMPT
+from app.utils.llm import get_groq_llm
 
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 

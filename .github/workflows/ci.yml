@@ -1,0 +1,225 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A new push to the same branch cancels the previous run, so PRs do not
+# queue up stale builds.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Points at the throwaway Postgres service container in the prisma job.
+  # Other jobs only need it to be a syntactically valid URL for
+  # `prisma generate`, which does not connect. Not a real credential.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rexial_ci
+
+jobs:
+  lint-and-types:
+    name: Lint & type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # The genai workspace package runs its turbo tasks through Python,
+      # so the interpreter has to exist before turbo runs.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # http-server and ws-server import generated Prisma types, so the
+      # client must exist before anything type-checks.
+      - name: Generate Prisma client
+        run: pnpm --filter @repo/db run db:generate
+
+      # Reporting only for now: the frontend has ~20 pre-existing eslint
+      # errors. Drop continue-on-error once those are cleaned up so lint
+      # becomes a merge gate.
+      - name: Lint
+        run: pnpm run lint
+        continue-on-error: true
+
+      - name: Type-check
+        run: pnpm run check-types
+
+      - name: Build all workspaces
+        run: pnpm run build
+
+  prisma:
+    name: Prisma schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Applying migrations for real is the only way to prove they still
+    # work on a clean database, which is exactly what a deploy does.
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rexial_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate schema
+        working-directory: packages/db
+        run: pnpm exec prisma validate
+
+      - name: Apply migrations to a clean database
+        working-directory: packages/db
+        run: pnpm exec prisma migrate deploy
+
+      - name: Check schema matches the migrations
+        working-directory: packages/db
+        # Exit code 2 means schema.prisma describes something the applied
+        # migrations do not, i.e. a migration is missing.
+        run: |
+          pnpm exec prisma migrate diff \
+            --from-config-datasource \
+            --to-schema ./prisma/schema.prisma \
+            --exit-code
+
+  python:
+    name: Python checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: apps/genAI/requirements.txt
+
+      # Compile-checks every module for syntax errors without installing
+      # the multi-GB ML dependency tree.
+      - name: Compile-check sources
+        working-directory: apps/genAI
+        run: python -m compileall -q app
+
+      - name: Lint with ruff
+        working-directory: apps/genAI
+        run: |
+          pip install ruff
+          ruff check app --output-format=github
+
+  docker:
+    name: Build ${{ matrix.service }} image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      # Let every image finish so one failure does not mask the others.
+      fail-fast: false
+      matrix:
+        include:
+          - service: frontend
+            dockerfile: apps/frontend/Dockerfile.prod
+          - service: http-server
+            dockerfile: apps/http-server/Dockerfile.prod
+          - service: ws-server
+            dockerfile: apps/ws-server/Dockerfile.prod
+          - service: genai
+            dockerfile: apps/genAI/Dockerfile.prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          # Validation only: never publish from a pull request.
+          push: false
+          load: false
+          build-args: |
+            DATABASE_URL=${{ env.DATABASE_URL }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  compose:
+    name: Validate compose files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate dev compose
+        run: |
+          touch apps/genAI/.env
+          docker compose -f docker-compose.yml config --quiet
+
+      - name: Validate prod compose
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rexial
+          REDIS_PASSWORD: placeholder
+        run: |
+          # .env.prod lives on the deploy server and is not in the repo,
+          # so stand in an empty one just to check the file's structure.
+          touch .env.prod
+          docker compose -f docker-compose.prod.yml config --quiet
+          rm -f .env.prod
+
+  security:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks needs history to scan commits, not just the tree.
+          fetch-depth: 0
+
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
