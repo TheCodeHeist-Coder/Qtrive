@@ -1,0 +1,48 @@
+# Every image builds with the repo root as its context, so the per-app
+# .dockerignore files are never applied. This one is.
+
+# Dependencies (reinstalled inside the image)
+node_modules
+**/node_modules
+
+# Python virtualenv for the genAI service - multiple GB, never needed in
+# an image since requirements.txt is installed during the build
+apps/genAI/.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+
+# Build outputs
+dist
+**/dist
+build
+.next
+**/.next
+.turbo
+**/.turbo
+**/tsconfig.tsbuildinfo
+
+# Secrets and local env
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+!apps/frontend/.env.production
+
+# VCS and CI
+.git
+.gitignore
+.github
+Jenkinsfile
+
+# Docs and assets not needed at build time
+*.md
+!apps/genAI/requirements.txt
+assets
+*.png
+
+# Runtime data
+apps/genAI/uploads
+**/uploads
+coverage
