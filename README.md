@@ -101,6 +101,10 @@ The platform evolves in multiple versions:
 boundaries, data model, request flows, caching, and the design decisions
 behind them.
 
+**[VPS deployment guide →](VPS-DEPLOYMENT.md)** — step-by-step setup on a
+single server, with PostgreSQL and Redis installed on the host rather than in
+containers.
+
 ---
 
 ## Getting Started

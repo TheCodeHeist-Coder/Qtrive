@@ -196,11 +196,6 @@ jobs:
           docker compose -f docker-compose.yml config --quiet
 
       - name: Validate prod compose
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: rexial
-          REDIS_PASSWORD: placeholder
         run: |
           # .env.prod lives on the deploy server and is not in the repo,
           # so stand in an empty one just to check the file's structure.
