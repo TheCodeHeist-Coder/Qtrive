@@ -1,3 +1,12 @@
+## Production stack.
+##
+## PostgreSQL and Redis run on the HOST (installed via apt), not as containers.
+## Containers reach them through `host.docker.internal`, which `extra_hosts`
+## maps to the Docker bridge gateway (172.17.0.1).
+##
+## The host services must listen on that bridge and be firewalled to it.
+## See VPS-DEPLOYMENT.md for the full setup.
+
 services:
 
     nginx:
@@ -7,7 +16,9 @@ services:
         ports:
             - "80:80"
             - "443:443"
-            - "81:81"
+            # Admin UI on localhost only - tunnel in:
+            #   ssh -L 8181:localhost:81 user@your-vps
+            - "127.0.0.1:81:81"
 
         volumes:
             - nginx_data:/data
@@ -50,9 +61,9 @@ services:
 
         networks:
             - rexial-network
-        depends_on:
-            db:
-                condition: service_healthy
+        # Reach PostgreSQL and Redis running on the host.
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
 
         # now run the migrations
         command: >
@@ -73,9 +84,9 @@ services:
             - .env.prod
         networks:
             - rexial-network
-        depends_on:
-            db:
-                condition: service_healthy
+        # Reach PostgreSQL and Redis running on the host.
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
         command: >
             sh -c "pnpm --filter @repo/db run db:generate:prod &&
                    pnpm run start"
@@ -102,57 +113,11 @@ services:
             retries: 5
             start_period: 60s
 
-    db:
-        image: postgres:15-alpine
-        container_name: rexial_db_prod
-        restart: always
-        env_file:
-            - .env.prod
-        volumes:
-            - Rexial_data:/var/lib/postgresql/data
-        networks:
-            - rexial-network
-        healthcheck:
-            test: [ "CMD-SHELL", "pg_isready -U postgres -d Rexial" ]
-            interval: 10s
-            timeout: 5s
-            retries: 10
-            start_period: 30s
-
-    redis:
-        image: redis:7-alpine
-        container_name: rexial_redis_prod
-        restart: always
-        env_file:
-            - .env.prod 
-        command: 
-            - redis-server
-            - --requirepass
-            - ${REDIS_PASSWORD}
-            - --maxmemory
-            - 256mb
-            - --maxmemory-policy
-            - allkeys-lru
-            - --appendonly
-            - yes
-        volumes:
-            - redis_data:/data
-        networks:
-            - rexial-network
-        healthcheck:
-            test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-            start_period: 10s
-
 networks:
     rexial-network:
         driver: bridge
 
 volumes:
-    Rexial_data:
     genai_uploads:
     nginx_data:
     letsencrypt:
-    redis_data:

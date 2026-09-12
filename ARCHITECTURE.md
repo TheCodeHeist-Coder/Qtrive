@@ -10,18 +10,18 @@ running, then come back for the *why*.
 
 ## Contents
 
--[The short version](#the-short-version)
--[System overview](#system-overview)
--[Why a monorepo](#why-a-monorepo)
--[The services](#the-services)
--[Data model](#data-model)
--[Flow 1: Creating a quiz](#flow-1-creating-a-quiz)
--[Flow 2: AI question generation](#flow-2-ai-question-generation)
--[Flow 3: Running a live quiz](#flow-3-running-a-live-quiz)
--[Caching and scale](#caching-and-scale)
--[Deployment topology](#deployment-topology)
--[Design decisions](#design-decisions)
--[Known limitations](#known-limitations)
+- [The short version](#the-short-version)
+- [System overview](#system-overview)
+- [Why a monorepo](#why-a-monorepo)
+- [The services](#the-services)
+- [Data model](#data-model)
+- [Flow 1: Creating a quiz](#flow-1-creating-a-quiz)
+- [Flow 2: AI question generation](#flow-2-ai-question-generation)
+- [Flow 3: Running a live quiz](#flow-3-running-a-live-quiz)
+- [Caching and scale](#caching-and-scale)
+- [Deployment topology](#deployment-topology)
+- [Design decisions](#design-decisions)
+- [Known limitations](#known-limitations)
 
 ---
 
@@ -453,33 +453,40 @@ instance, but nothing in the code assumes that.
 ## Deployment topology
 
 ```
-                    Internet
-                       │
-                       ▼
-          ┌────────────────────────┐
-          │  nginx-proxy-manager   │  :80 :443 (TLS, routing)
-          │                        │  :81      (admin UI)
-          └──┬─────┬─────┬─────┬───┘
-             │     │     │     │
-    ┌────────▼┐ ┌──▼───┐ ┌▼─────┐ ┌▼──────┐
-    │frontend │ │backend│ │ ws   │ │ genai │
-    │ (nginx) │ │ :4000 │ │:8080 │ │ :8000 │
-    └─────────┘ └───┬───┘ └──┬───┘ └───────┘
-                    │        │
-              ┌─────▼────┐ ┌─▼──────┐
-              │ postgres │ │ redis  │
-              │ (volume) │ │(volume)│
-              └──────────┘ └────────┘
+                       Internet
+                          │
+                          ▼  :80 :443
+   ┌───────────────────── VPS ──────────────────────────┐
+   │      ┌────────────────────────┐                    │
+   │      │  nginx-proxy-manager   │  TLS, routing      │
+   │      │  (:81 admin, loopback) │                    │
+   │      └──┬─────┬─────┬─────┬───┘                    │
+   │         │     │     │     │                        │
+   │ ┌───────▼─┐ ┌─▼─────┐ ┌───▼──┐ ┌▼──────┐           │
+   │ │frontend │ │backend│ │  ws  │ │ genai │  Docker   │
+   │ │ (nginx) │ │ :4000 │ │:8080 │ │ :8000 │  bridge   │
+   │ └─────────┘ └───┬───┘ └──┬───┘ └───────┘           │
+   │                 │        │                         │
+   │      host.docker.internal -> 172.17.0.1            │
+   │                 │        │                         │
+   │ ┌───────────────▼────────▼────────────────────┐    │
+   │ │  host services (systemd, NOT containers)    │    │
+   │ │    postgresql :5432        redis :6379      │    │
+   │ └─────────────────────────────────────────────┘    │
+   └────────────────────────────────────────────────────┘
 
-         all on the private `rexial-network` bridge
+   containers on the private `rexial-network` bridge
 ```
 
-Only nginx is exposed. Everything else is reachable only inside the Docker
-network.
+**PostgreSQL and Redis run on the host**, installed with apt, not as
+containers. The containers that need them declare
+`extra_hosts: host.docker.internal:host-gateway`, which resolves to the Docker
+bridge gateway. The host services must bind that interface, and the firewall
+must restrict those ports to the bridge subnet — see
+[VPS-DEPLOYMENT.md](VPS-DEPLOYMENT.md).
 
-> **Warning:** Port **81** is the nginx-proxy-manager admin UI. It is published on the
->host, so it should be firewalled to trusted IPs — anyone who reaches it can
->re-route your traffic.
+Only ports 80 and 443 are public. The nginx admin UI is bound to `127.0.0.1:81`
+and reached through an SSH tunnel.
 
 Images are built by GitHub Actions and tagged `:latest` **and** `:<commit-sha>`;
 the deploy pins the SHA so rollback is exact. See
